@@ -79,11 +79,6 @@ public:
         }
         return false;
     }
-
-    void addInterest(double interest)
-    {
-        balance += interest;
-    }
     void add(double amounttoadd)
     {
         balance += amounttoadd;
@@ -102,7 +97,7 @@ public:
         {
             if (wallet.getAccountNumber() == account_number)
             {
-                cout<<"Account already exists!"<<endl;
+                cout << "Account already exists!" << endl;
                 return;
             }
         }
@@ -198,51 +193,6 @@ public:
         cout << "Fixed deposit created successfully!" << endl;
     }
 
-    void offer1()
-    {
-        for (Wallet &wallet : wallets)
-        {
-            if (wallet.getBalance() == wallet.getFixedDepositAmount())
-            {
-                wallet.addInterest(10);
-            }
-        }
-    }
-
-    void offer2()
-    {
-        vector<Wallet *> top3_customers;
-
-        for (Wallet &wallet : wallets)
-        {
-            if (wallet.getRemainingFDTransactions() > 0)
-            {
-                top3_customers.push_back(&wallet);
-            }
-        }
-
-        sort(top3_customers.begin(), top3_customers.end(),
-             [](const Wallet *a, const Wallet *b)
-             {
-                 if (a->getBalance() > b->getBalance())
-                 {
-                     return true;
-                 }
-                 else if (a->getBalance() == b->getBalance())
-                 {
-                     if (a->getAccountNumber() < b->getAccountNumber())
-                     {
-                         return true;
-                     }
-                 }
-                 return false;
-             });
-
-        for (int i = 0; i < 3 && i < top3_customers.size(); i++)
-        {
-            top3_customers[i]->addInterest(10);
-        }
-    }
     void addamount(string account_number, double amount)
     {
         Wallet *wallet = findWalletByAccountNumber(account_number);
@@ -254,6 +204,21 @@ public:
         wallet->add(amount);
         cout << "Added amount: " << amount << " successfully." << endl;
     }
+    void withdrawamount(string account_number, double amount)
+    {
+        Wallet *wallet = findWalletByAccountNumber(account_number);
+        if(!wallet)
+        {
+            cout<<"Account not found!"<<endl;
+            return;
+        }
+        bool done = wallet->withdraw(amount);
+        if(done)
+        {cout<<"Withdrawn amount: "<<amount<<" successfully."<<endl;
+        int rem = wallet->getBalance();
+        cout<<"Remaining Balance:"<< rem <<endl;}
+        else cout<<"Errx! Insufficient Balance."<<endl;
+    }
 };
 
 int main()
@@ -261,7 +226,7 @@ int main()
     WalletSystem walletSystem;
     int choice;
 
-    while (true)
+    do
     {
         cout << endl;
         cout << "Select an option:" << endl;
@@ -270,17 +235,16 @@ int main()
         cout << "3. Account statement" << endl;
         cout << "4. Overview" << endl;
         cout << "5. Fixed deposit" << endl;
-        cout << "6. Offer 1" << endl;
-        cout << "7. Offer 2" << endl;
+        cout << "6. Add amount" << endl;
+        cout << "7. Withdraw amount" << endl;
         cout << "8. Exit" << endl;
-        cout << "9. Add amount" << endl;
 
         cout << endl;
 
         cin >> choice;
 
         string account_number, sender_account_number, receiver_account_number;
-        double initial_balance, transfer_amount, fd_amount, add_amount;
+        double initial_balance, transfer_amount, fd_amount, add_amount,withdraw_amount;
 
         switch (choice)
         {
@@ -316,25 +280,27 @@ int main()
             walletSystem.fixedDeposit(account_number, fd_amount);
             break;
         case 6:
-            walletSystem.offer1();
-            break;
-        case 7:
-            walletSystem.offer2();
-            break;
-        case 8:
-            cout << "Exiting program." << endl;
-            return 0;
-        case 9:
             cout << "Enter Account Number: ";
             cin >> account_number;
             cout << "Enter Amount to be added: ";
             cin >> add_amount;
             walletSystem.addamount(account_number, add_amount);
             break;
+        case 7:
+            cout << "Enter Account Number: ";
+            cin >> account_number;
+            cout << "Enter Amount to withdraw: ";
+            cin >> withdraw_amount;
+            walletSystem.withdrawamount(account_number, withdraw_amount);
+            break;
+        case 8:
+            cout << "Exiting program." << endl;
+            return 0;
+
         default:
             cout << "Invalid option." << endl;
         }
-    }
+    } while (choice != 8);
 
     return 0;
 }
