@@ -1,138 +1,190 @@
-#include <bits/stdc++.h>
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+#include <vector>
+#include <set>
 using namespace std;
-class SnakeLadderGame
+
+class Player
 {
-private:
-    int boardSize;
-
-    std::vector<std::pair<int, int>> snakes;
-    std::vector<std::pair<int, int>> ladders;
-    std::vector<std::string> players;
-    int currentPlayer;
-
 public:
-    SnakeLadderGame(int size) : boardSize(size), currentPlayer(0) {}
+    Player(string name) : name(name), position(0) {}
 
-    void addSnake(int head, int tail)
+    void move(int steps)
     {
-        snakes.push_back({head, tail});
+        position += steps;
     }
 
-    void addLadder(int start, int end)
+    int getPosition() const
     {
-        ladders.push_back({start, end});
+        return position;
     }
 
-    void addPlayer(const std::string &playerName)
+    string getName() const
     {
-        players.push_back(playerName);
+        return name;
     }
 
-    bool isSnakeOrLadder(int position, int &newPosition)
+private:
+    string name;
+    int position;
+};
+
+class Board
+{
+public:
+    Board(int size) : size(size), cells(size * size, 0) {}
+
+    void addSnakeOrLadder(int start, int end)
     {
-        for (const auto &snake : snakes)
+        if (start >= 0 && start < size * size && end >= 0 && end < size * size)
         {
-            if (position == snake.first)
+            cells[start] = end;
+        }
+    }
+
+    int getNextPosition(int currentPosition, int steps) const
+    {
+        int nextPosition = currentPosition + steps;
+        if (nextPosition >= size * size - 1)
+        {
+            return size * size - 1; // End of the board. Winning Position!
+        }
+        if (cells[nextPosition] != 0)
+        {
+            // Check if the next position is a snake or a ladder
+            nextPosition = cells[nextPosition];
+        }
+        return nextPosition;
+    }
+
+    int getSize() const
+    {
+        return size;
+    }
+
+private:
+    int size;
+    vector<int> cells; // Represents snakes and ladders
+};
+
+class SnakeAndLaddersGame
+{
+public:
+    SnakeAndLaddersGame(int boardSize, int numPlayers)
+        : board(boardSize), currentPlayer(0)
+    {
+        for (int i = 1; i <= numPlayers; i++)
+        {
+            cout << "Enter the name of Player " << i << ": ";
+            string playerName;
+            cin >> playerName;
+            players.push_back(Player(playerName));
+        }
+        srand(time(0)); // Seed for random dice rolls
+    }
+
+    void info_snakes_ladders()
+    {
+        // Prompt the user to add snakes and ladders
+        int numSnakes, numLadders;
+        cout << "Enter the number of snakes: ";
+        cin >> numSnakes;
+        cout << "Enter the number of ladders: ";
+        cin >> numLadders;
+
+        set<int> usedPositions; // To track used positions
+
+        for (int i = 0; i < numSnakes; i++)
+        {
+            int start, end;
+            while (true)
             {
-                newPosition = snake.second;
-                return true;
+                cout << "Enter the start and end positions of Snake " << i + 1 << ": ";
+                cin >> start >> end;
+                if (start >= 2 && start <= 99 && end >= 1 && end <= 98 && usedPositions.count(start) == 0 && usedPositions.count(end) == 0 && start > end)
+                {
+                    usedPositions.insert(start);
+                    usedPositions.insert(end);
+                    board.addSnakeOrLadder(start, end);
+                    break;
+                }
+                else
+                {
+                    cout << "Invalid positions or positions already used. Please try again." << endl;
+                }
             }
         }
-        for (const auto &ladder : ladders)
+
+        for (int i = 0; i < numLadders; i++)
         {
-            if (position == ladder.first)
+            int start, end;
+            while (true)
             {
-                newPosition = ladder.second;
-                return true;
+                cout << "Enter the start and end positions of Ladder " << i + 1 << ": ";
+                cin >> start >> end;
+                if (start >= 2 && start <= 98 && end >= 3 && end <= 99 && usedPositions.count(start) == 0 && usedPositions.count(end) == 0 && start < end)
+                {
+                    usedPositions.insert(start);
+                    usedPositions.insert(end);
+                    board.addSnakeOrLadder(start, end);
+                    break;
+                }
+                else
+                {
+                    cout << "Invalid positions or positions already used. Please try again." << endl;
+                }
             }
         }
-        return false;
-    }
-
-    int rollDice()
-    {
-        return std::rand() % 6 + 1;
     }
 
     void play()
     {
-        int currentPosition[players.size()] = {0};
-        int diceRoll;
-
         while (true)
         {
-            for (int i = 0; i < players.size(); ++i)
+            Player &currentPlayerObj = players[currentPlayer];
+            int diceRoll = rand() % 6 + 1; // Simulate a dice roll
+            cout << currentPlayerObj.getName() << " rolled a " << diceRoll << endl;
+            int newPosition = board.getNextPosition(currentPlayerObj.getPosition(), diceRoll);
+
+            if (newPosition > board.getSize() * board.getSize() - 1)
             {
-                diceRoll = rollDice();
-                int newPosition = currentPosition[i] + diceRoll;
-
-                if (isSnakeOrLadder(newPosition, newPosition))
-                {
-                    std::cout << players[i] << " rolled a " << diceRoll << " and moved from " << currentPosition[i] << " to " << newPosition << std::endl;
-                }
-                else if (newPosition <= boardSize)
-                {
-                    currentPosition[i] = newPosition;
-                    std::cout << players[i] << " rolled a " << diceRoll << " and moved from " << currentPosition[i] - diceRoll << " to " << currentPosition[i] << std::endl;
-                }
-
-                if (currentPosition[i] == boardSize)
-                {
-                    std::cout << "\n"
-                              << players[i] << " wins the game" << std::endl;
-                    return;
-                }
+                cout << currentPlayerObj.getName() << " is at position " << currentPlayerObj.getPosition() << endl;
             }
+            else
+            {
+                currentPlayerObj.move(newPosition - currentPlayerObj.getPosition());
+                cout << currentPlayerObj.getName() << " is now at position " << newPosition << endl;
+            }
+
+            if (newPosition == board.getSize() * board.getSize() - 1)
+            {
+                cout << currentPlayerObj.getName() << " wins!" << endl;
+                break;
+            }
+
+            currentPlayer = (currentPlayer + 1) % players.size();
         }
     }
+
+private:
+    Board board;
+    vector<Player> players;
+    int currentPlayer;
 };
 
 int main()
 {
-    std::srand(static_cast<unsigned int>(std::time(nullptr)));
+    int boardSize = 10;
+    int numPlayers = 2;
+    cout << "****************************************************************************" << endl;
+    cout << "WELCOME" << endl;
+    cout << "While entering Snakes positions, make sure to enter greater value first." << endl;
+    cout << "While entering Ladders positions, make sure to enter smaller value first." << endl;
+    cout << endl;
 
-    int boardSize;
-    std::cout << "Enter the board size: ";
-    std::cin >> boardSize;
-
-    SnakeLadderGame game(boardSize);
-
-    int numSnakes;
-    std::cout << "Enter the number of snakes: ";
-    std::cin >> numSnakes;
-
-    for (int i = 0; i < numSnakes; ++i)
-    {
-        int head, tail;
-        std::cout << "Enter the head and tail positions of snake " << i + 1 << ": ";
-        std::cin >> head >> tail;
-        game.addSnake(head, tail);
-    }
-
-    int numLadders;
-    std::cout << "Enter the number of ladders: ";
-    std::cin >> numLadders;
-
-    for (int i = 0; i < numLadders; ++i)
-    {
-        int start, end;
-        std::cout << "Enter the start and end positions of ladder " << i + 1 << ": ";
-        std::cin >> start >> end;
-        game.addLadder(start, end);
-    }
-
-    int numPlayers;
-    std::cout << "Enter the number of players: ";
-    std::cin >> numPlayers;
-
-    for (int i = 0; i < numPlayers; ++i)
-    {
-        std::string playerName;
-        std::cout << "Enter the name of player " << i + 1 << ": ";
-        std::cin >> playerName;
-        game.addPlayer(playerName);
-    }
-
+    SnakeAndLaddersGame game(boardSize, numPlayers);
+    game.info_snakes_ladders();
     game.play();
 
     return 0;
