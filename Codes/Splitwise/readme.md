@@ -111,3 +111,8 @@ Format: ```<user-id-of-x> owes <user-id-of-y>: <amount>```
 If there are no balances for the input, print No balances
 
 In cases where the user for which balance was asked for, owes money, they’ll be x. They’ll be y otherwise.
+
+### ACTIVITY DIAGRAM
+
+![image](https://github.com/Projects-Shobhit/LLD/assets/75949429/f5aecd3f-fc1b-40bf-9ec9-261134944860)
+
