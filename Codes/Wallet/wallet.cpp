@@ -4,17 +4,44 @@
 
 using namespace std;
 
-class Wallet
+class Account
 {
-private:
+protected:
     string account_number;
     double balance;
-    double fd_amount;
-    int fd_remaining_transactions;
 
 public:
-    Wallet(string acc_number, double initial_balance)
-        : account_number(acc_number), balance(initial_balance), fd_amount(0), fd_remaining_transactions(0) {}
+    Account(string acc_number, double initial_balance)
+        : account_number(acc_number), balance(initial_balance) {}
+
+    virtual void deposit(double amount)
+    {
+        if (amount > 0)
+        {
+            balance += amount;
+        }
+    }
+
+    virtual bool withdraw(double amount)
+    {
+        if (amount > 0 && balance - amount >= 0)
+        {
+            balance -= amount;
+            return true;
+        }
+        return false;
+    }
+
+    virtual void add(double amounttoadd)
+    {
+        balance += amounttoadd;
+    }
+
+    virtual void accountStatement() const
+    {
+        cout << "Account statement for " << account_number << ":" << endl;
+        cout << "Balance: " << balance << endl;
+    }
 
     string getAccountNumber() const
     {
@@ -26,6 +53,19 @@ public:
         return balance;
     }
 
+    virtual ~Account() {}
+};
+
+class Wallet : public Account
+{
+private:
+    double fd_amount;
+    int fd_remaining_transactions;
+
+public:
+    Wallet(string acc_number, double initial_balance)
+        : Account(acc_number, initial_balance), fd_amount(0), fd_remaining_transactions(0) {}
+
     double getFixedDepositAmount() const
     {
         return fd_amount;
@@ -34,24 +74,6 @@ public:
     int getRemainingFDTransactions() const
     {
         return fd_remaining_transactions;
-    }
-
-    void deposit(double amount)
-    {
-        if (amount > 0)
-        {
-            balance += amount;
-        }
-    }
-
-    bool withdraw(double amount)
-    {
-        if (amount > 0 && balance - amount >= 0)
-        {
-            balance -= amount;
-            return true;
-        }
-        return false;
     }
 
     void createFixedDeposit(double amount, int num_transactions)
@@ -63,56 +85,76 @@ public:
         }
     }
 
-    bool transfer(Wallet &recipient, double amount)
+    void add(double amounttoadd) override
     {
-        if (amount >= 0.0001 && balance - amount >= 0)
-        {
-            balance -= amount;
-            recipient.deposit(amount);
+        Account::add(amounttoadd);
+        cout << "Added amount: " << amounttoadd << " successfully." << endl;
+        double updated = getBalance();
+        cout << "Updated Balance:" << updated << endl;
+        return;
+        
+    }
 
-            if (balance == recipient.balance)
-            {
-                balance += 10;
-                recipient.deposit(10);
-            }
+    bool withdraw(double amount) override
+    {
+        if (Account::withdraw(amount))
+        {
+            cout << "Withdrawn amount: " << amount << " successfully." << endl;
+            double rem = getBalance();
+            cout << "Remaining Balance:" << rem << endl;
             return true;
         }
-        return false;
+        else
+        {
+            cout << "Errx! Insufficient Balance." << endl;
+            return false;
+        }
     }
-    void add(double amounttoadd)
+
+    void accountStatement() const override
     {
-        balance += amounttoadd;
+        Account::accountStatement();
+        cout << "Fixed deposit amount: " << fd_amount << endl;
+        cout << "Remaining FD transactions: " << fd_remaining_transactions << endl;
     }
 };
 
 class WalletSystem
 {
 private:
-    vector<Wallet> wallets;
+    vector<Account *> accounts;
 
 public:
+    ~WalletSystem()
+    {
+        for (auto &account : accounts)
+        {
+            delete account;
+        }
+    }
+
     void createWallet(string account_number, double initial_balance)
     {
-        for (auto &wallet : wallets)
+        for (auto &account : accounts)
         {
-            if (wallet.getAccountNumber() == account_number)
+            if (account->getAccountNumber() == account_number)
             {
                 cout << "Account already exists!" << endl;
                 return;
             }
         }
-        Wallet wallet(account_number, initial_balance);
-        wallets.push_back(wallet);
+        Wallet *wallet = new Wallet(account_number, initial_balance);
+        accounts.push_back(wallet);
         cout << "Wallet created successfully!" << endl;
     }
 
-    Wallet *findWalletByAccountNumber(string account_number)
+    Account *findAccountByAccountNumber(string account_number)
     {
-        for (auto &wallet : wallets)
+        for (auto &account : accounts)
         {
-            if (wallet.getAccountNumber() == account_number)
+            if (account->getAccountNumber() == account_number)
             {
-                return &wallet;
+                return account;
             }
         }
         return nullptr;
@@ -120,17 +162,25 @@ public:
 
     void transferAmount(string sender_account_number, string receiver_account_number, double amount)
     {
-        Wallet *sender_wallet = findWalletByAccountNumber(sender_account_number);
-        Wallet *receiver_wallet = findWalletByAccountNumber(receiver_account_number);
+        Account *sender_account = findAccountByAccountNumber(sender_account_number);
+        Account *receiver_account = findAccountByAccountNumber(receiver_account_number);
 
-        if (!sender_wallet || !receiver_wallet)
+        if (!sender_account || !receiver_account)
         {
             cout << "Invalid account numbers." << endl;
             return;
         }
 
-        if (sender_wallet->transfer(*receiver_wallet, amount))
+        if (sender_account->withdraw(amount))
         {
+            receiver_account->deposit(amount);
+
+            if (sender_account->getBalance() == receiver_account->getBalance())
+            {
+                sender_account->deposit(10);
+                receiver_account->deposit(10);
+            }
+
             cout << "Amount transferred successfully!" << endl;
         }
         else
@@ -141,85 +191,77 @@ public:
 
     void accountStatement(string account_number)
     {
-        Wallet *wallet = findWalletByAccountNumber(account_number);
+        Account *account = findAccountByAccountNumber(account_number);
 
-        if (!wallet)
+        if (!account)
         {
             cout << "Account not found." << endl;
             return;
         }
 
-        cout << "Account statement for " << wallet->getAccountNumber() << ":" << endl;
-        cout << "Balance: " << wallet->getBalance() << endl;
-        cout << "Fixed deposit amount: " << wallet->getFixedDepositAmount() << endl;
-        cout << "Remaining FD transactions: " << wallet->getRemainingFDTransactions() << endl;
+        account->accountStatement();
     }
 
     void overview()
     {
         cout << "Overview of all accounts:" << endl;
-        for (const Wallet &wallet : wallets)
+        for (const Account *account : accounts)
         {
-            cout << "Account number: " << wallet.getAccountNumber() << endl;
-            cout << "Balance: " << wallet.getBalance() << endl;
-            cout << "Fixed deposit amount: " << wallet.getFixedDepositAmount() << endl;
-            cout << "Remaining FD transactions: " << wallet.getRemainingFDTransactions() << endl;
+            account->accountStatement();
+            cout << endl;
         }
     }
 
     void fixedDeposit(string account_number, double amount)
     {
-        Wallet *wallet = findWalletByAccountNumber(account_number);
+        Account *account = findAccountByAccountNumber(account_number);
 
-        if (!wallet)
+        if (!account)
         {
             cout << "Account not found." << endl;
             return;
         }
-        
+
         if (amount < 0.0001)
         {
             cout << "The fixed deposit amount must be greater than 0.0001 F₹." << endl;
             return;
         }
 
-        if (wallet->getFixedDepositAmount() > 0)
+        if (dynamic_cast<Wallet *>(account)->getFixedDepositAmount() > 0)
         {
             cout << "You already have a fixed deposit." << endl;
             return;
         }
 
-        wallet->createFixedDeposit(amount, 5);
+        dynamic_cast<Wallet *>(account)->createFixedDeposit(amount, 5);
         cout << "Fixed deposit created successfully!" << endl;
     }
 
     void addamount(string account_number, double amount)
     {
-        Wallet *wallet = findWalletByAccountNumber(account_number);
-        if (!wallet)
+        Account *account = findAccountByAccountNumber(account_number);
+        if (!account)
         {
             cout << "Account not found!" << endl;
             return;
         }
-        wallet->add(amount);
-        cout << "Added amount: " << amount << " successfully." << endl;
+        account->add(amount);
     }
-    void withdrawamount(string account_number, double amount)
+
+    void withdrawamount(string account_number , double amount)
     {
-        Wallet *wallet = findWalletByAccountNumber(account_number);
-        if(!wallet)
+        Account *account = findAccountByAccountNumber(account_number);
+        if(!account)
         {
             cout<<"Account not found!"<<endl;
             return;
         }
-        bool done = wallet->withdraw(amount);
-        if(done)
-        {cout<<"Withdrawn amount: "<<amount<<" successfully."<<endl;
-        int rem = wallet->getBalance();
-        cout<<"Remaining Balance:"<< rem <<endl;}
-        else cout<<"Errx! Insufficient Balance."<<endl;
+        account->withdraw(amount);
     }
 };
+
+
 
 int main()
 {
@@ -244,7 +286,7 @@ int main()
         cin >> choice;
 
         string account_number, sender_account_number, receiver_account_number;
-        double initial_balance, transfer_amount, fd_amount, add_amount,withdraw_amount;
+        double initial_balance, transfer_amount, fd_amount, add_amount, withdraw_amount;
 
         switch (choice)
         {
